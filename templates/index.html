@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="pt-PT">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0f172a">
+    <title>Painel do Parque de Estacionamento</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module" src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+  </head>
+  <body class="min-h-screen bg-slate-100 text-slate-900">
+    <header class="bg-slate-900 text-white">
+      <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
+        <div>
+          <p class="text-sm font-medium text-sky-300">Operação diária</p>
+          <h1 class="mt-1 text-2xl font-bold tracking-tight">Parque de Estacionamento</h1>
+        </div>
+        <span class="rounded-full bg-slate-800 px-3 py-1 text-sm text-slate-200">Painel do operador</span>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
+      <section aria-labelledby="status-heading" class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 id="status-heading" class="text-lg font-semibold">Ocupação do parque</h2>
+            <p id="status-message" class="mt-1 text-sm text-slate-600" aria-live="polite">A carregar lotação…</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span id="occupancy-indicator" class="h-4 w-4 rounded-full bg-slate-300" aria-hidden="true"></span>
+            <span id="occupancy-label" class="font-semibold text-slate-700">A verificar</span>
+          </div>
+        </div>
+        <div class="mt-6 grid gap-4 sm:grid-cols-3">
+          <div class="rounded-xl bg-slate-50 p-4">
+            <p class="text-sm text-slate-600">Lugares ocupados</p>
+            <p id="occupied-spaces" class="mt-1 text-2xl font-bold" aria-live="polite">—</p>
+          </div>
+          <div class="rounded-xl bg-slate-50 p-4">
+            <p class="text-sm text-slate-600">Lugares disponíveis</p>
+            <p id="available-spaces" class="mt-1 text-2xl font-bold" aria-live="polite">—</p>
+          </div>
+          <div class="rounded-xl bg-slate-50 p-4">
+            <p class="text-sm text-slate-600">Capacidade máxima</p>
+            <p id="max-capacity" class="mt-1 text-2xl font-bold" aria-live="polite">—</p>
+          </div>
+        </div>
+        <div class="mt-5 h-3 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="Percentagem de ocupação" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="occupancy-progress">
+          <div id="occupancy-progress-bar" class="h-full w-0 rounded-full bg-slate-400 transition-all"></div>
+        </div>
+        <button id="refresh-status" type="button" class="mt-4 text-sm font-semibold text-sky-700 hover:text-sky-900 focus:outline-none focus:ring-2 focus:ring-sky-500">
+          Atualizar lotação
+        </button>
+      </section>
+
+      <div class="grid gap-6 lg:grid-cols-2">
+        <section aria-labelledby="entry-heading" class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+          <h2 id="entry-heading" class="text-lg font-semibold">Registar entrada</h2>
+          <p class="mt-1 text-sm text-slate-600">Introduza os dados do veículo que vai estacionar.</p>
+          <form id="entry-form" class="mt-5 space-y-4">
+            <div>
+              <label for="entry-plate" class="mb-1 block text-sm font-medium text-slate-700">Matrícula</label>
+              <input id="entry-plate" name="plate" type="text" required maxlength="20" autocomplete="off" autofocus
+                class="w-full rounded-lg border border-slate-300 px-3 py-2.5 uppercase shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                placeholder="Ex.: AA-00-AA">
+            </div>
+            <div>
+              <label for="vehicle-type" class="mb-1 block text-sm font-medium text-slate-700">Tipo de veículo</label>
+              <select id="vehicle-type" name="vehicle_type" required
+                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200">
+                <option value="Carro">Carro</option>
+                <option value="Mota">Mota</option>
+              </select>
+            </div>
+            <button id="entry-submit" type="submit" disabled
+              class="w-full rounded-lg bg-sky-700 px-4 py-3 font-semibold text-white hover:bg-sky-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-400">
+              Registar entrada
+            </button>
+          </form>
+        </section>
+
+        <section aria-labelledby="exit-heading" class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+          <h2 id="exit-heading" class="text-lg font-semibold">Registar saída</h2>
+          <p class="mt-1 text-sm text-slate-600">Calcule o valor devido para uma matrícula estacionada.</p>
+          <form id="exit-form" class="mt-5 space-y-4">
+            <div>
+              <label for="exit-plate" class="mb-1 block text-sm font-medium text-slate-700">Matrícula</label>
+              <input id="exit-plate" name="plate" type="text" required maxlength="20" autocomplete="off"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2.5 uppercase shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                placeholder="Ex.: AA-00-AA">
+            </div>
+            <button type="submit"
+              class="w-full rounded-lg bg-indigo-700 px-4 py-3 font-semibold text-white hover:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+              Calcular valor de saída
+            </button>
+          </form>
+        </section>
+      </div>
+
+      <section aria-labelledby="payment-heading" class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <h2 id="payment-heading" class="text-lg font-semibold">Confirmar pagamento</h2>
+        <p class="mt-1 text-sm text-slate-600">A vaga só é libertada depois da confirmação do pagamento no Xano.</p>
+        <form id="payment-form" class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div class="flex-1">
+            <label for="record-id" class="mb-1 block text-sm font-medium text-slate-700">Identificador do registo</label>
+            <input id="record-id" name="record_id" type="number" min="1" step="1" required
+              class="w-full rounded-lg border border-slate-300 px-3 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+              placeholder="Ex.: 123">
+          </div>
+          <button type="submit"
+            class="rounded-lg bg-emerald-700 px-5 py-3 font-semibold text-white hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
+            Confirmar pagamento
+          </button>
+        </form>
+      </section>
+
+      <div id="feedback" class="hidden rounded-xl p-4 text-sm" role="status" aria-live="polite"></div>
+    </main>
+  </body>
+</html>
