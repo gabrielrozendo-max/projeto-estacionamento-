@@ -34,4 +34,5 @@ query "history" verb=GET {
     } as $history
   }
   response = $history.items
+  guid = "_HdW3gk1b9lnm4Fx0K-pESbY0M4"
 }
