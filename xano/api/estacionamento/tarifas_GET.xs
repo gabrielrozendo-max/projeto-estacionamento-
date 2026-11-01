@@ -9,4 +9,5 @@ query "tarifas" verb=GET {
     } as $tarifa
   }
   response = $tarifa
+  guid = "SJtbuzXERa-tYqfc8UxzFZ2VMjw"
 }

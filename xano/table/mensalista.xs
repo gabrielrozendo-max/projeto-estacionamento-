@@ -16,4 +16,5 @@ table "mensalista" {
     {type: "btree", field: [{name: "veiculo_id"}]}
     {type: "btree", field: [{name: "status"}]}
   ]
+  guid = "gUjb_AscNGmrsI7BRfqspEXEYRM"
 }

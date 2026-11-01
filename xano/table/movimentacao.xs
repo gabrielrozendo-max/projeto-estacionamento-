@@ -18,4 +18,5 @@ table "movimentacao" {
     {type: "btree", field: [{name: "usuario_id"}]}
     {type: "btree", field: [{name: "status_pagamento"}]}
   ]
+  guid = "0e81py3y3lFtCq0qOXB_320WSK0"
 }

@@ -13,4 +13,5 @@ table "veiculo" {
     {type: "primary", field: [{name: "id"}]}
     {type: "btree|unique", field: [{name: "placa"}]}
   ]
+  guid = "w_7jmK2T6KIsnrBo0ICc9YL290E"
 }

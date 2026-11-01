@@ -10,4 +10,5 @@ table "tarifa" {
   index = [
     {type: "primary", field: [{name: "id"}]}
   ]
+  guid = "nrxzZSc1p_dfi5cXKN2aY6Pz35o"
 }

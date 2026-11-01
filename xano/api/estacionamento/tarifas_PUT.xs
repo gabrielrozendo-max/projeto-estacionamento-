@@ -45,4 +45,5 @@ query "tarifas" verb=PUT {
     } as $updated_tarifa
   }
   response = $updated_tarifa
+  guid = "K6pkeeDN3wxSyCdpjyDheNVNuWc"
 }
