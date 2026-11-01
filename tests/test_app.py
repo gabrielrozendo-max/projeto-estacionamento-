@@ -449,3 +449,12 @@ def test_update_tarifas_invalid_payload_returns_400():
     assert invalid_res_2.status_code == 400
     assert invalid_res_3.status_code == 400
     request_mock.assert_not_called()
+
+
+def test_dashboard_renders_tarifa_form():
+    response = create_client().get("/")
+    assert response.status_code == 200
+    assert b'id="tarifa-form"' in response.data
+    assert b'id="hora_inicial"' in response.data
+    assert b'id="hora_adicional"' in response.data
+    assert b'id="tolerancia_minutos"' in response.data
