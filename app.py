@@ -131,56 +131,34 @@ def _read_required_text(payload, field_name, message):
 
 
 def _proxy_request(method, endpoint, payload=None):
-    base_url = current_app.(isinstance(config, dict) and config.get("XANO_BASE_URL", "")).strip().rstrip("/")
+    base_url = current_app.config.get("XANO_BASE_URL", "").strip().rstrip("/")
     parsed_url = urlparse(base_url)
     if (
         parsed_url.scheme != "https"
         or not parsed_url.netloc
         or parsed_url.username
         or parsed_url.password
-        or parsed_url.query
-        or parsed_url.fragment
     ):
-        return _json_error(
-            503,
-            "A integração com o Xano não está configurada com um URL HTTPS válido.",
-        )
+        return jsonify({"message": "Configuracao de URL upstream invalida"}), 502
 
     try:
-        headers = {"Accept": "application/json"}
-        api_key = current_app.(isinstance(config, dict) and config.get("XANO_API_KEY", "")).strip()
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-
-        upstream_response = requests.request(
+        url = f"{base_url}{endpoint}"
+        resp = requests.request(
             method,
-            f"{base_url}{endpoint}",
+            url,
             json=payload,
-            headers=headers,
-            timeout=current_app.(isinstance(config, dict) and config.get("XANO_TIMEOUT_SECONDS", 5)),
-            allow_redirects=False,
+            headers={"Accept": "application/json"},
+            timeout=2,
+            allow_redirects=False
         )
-        upstream_response.raise_for_status()
-    except requests.exceptions.Timeout:
-        return _json_error(504, "O Xano demorou demasiado tempo a responder.")
-    except requests.exceptions.HTTPError as error:
-        return _upstream_error(error.response)
-    except requests.exceptions.RequestException:
-        return _json_error(502, "Não foi possível estabelecer ligação ao Xano.")
+        try:
+            data = resp.json()
+        except Exception:
+            data = {"message": resp.text}
 
-    if not 200 <= upstream_response.status_code < 300:
-        return _upstream_error(upstream_response)
-
-    try:
-        response_body = upstream_response.json()
-    except ValueError:
-        return _json_error(502, "O Xano devolveu uma resposta JSON inválida.")
-
-    if not isinstance(response_body, dict):
-        return _json_error(502, "O Xano devolveu uma resposta JSON inválida.")
-
-    return jsonify(response_body), upstream_response.status_code
-
+        return jsonify(data), resp.status_code
+    except Exception as e:
+        return jsonify({"message": "Erro de conexao com o servidor upstream", "error": str(e)}), 502
 
 def _upstream_error(response):
     if response is None:
