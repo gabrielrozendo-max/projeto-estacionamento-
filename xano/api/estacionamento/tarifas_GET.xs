@@ -1,9 +1,12 @@
-﻿# API Endpoint: GET /tarifas
-# Description: Retorna a tabela de tarifas atual do estacionamento
-
-query GetTarifas {
-  db.find_first("tarifas") {
-    output = "tarifa"
+query "tarifas" verb=GET {
+  api_group = "Estacionamento"
+  description = "Retorna o primeiro registro da tabela tarifa"
+  input {
   }
-  return $tarifa
+  stack {
+    db.query "tarifa" {
+      return = { type: "single" }
+    } as $tarifa
+  }
+  response = $tarifa
 }
