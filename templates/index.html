@@ -143,6 +143,32 @@
       </div>
     </div>
 
+
+    <!-- Painel de Histórico de Movimentações -->
+    <div class="card my-4">
+      <div class="card-header bg-dark text-white">
+        <h5 class="card-title mb-0">Histórico de Movimentações</h5>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped align-middle" id="historico-table">
+            <thead>
+              <tr>
+                <th>Placa</th>
+                <th>Entrada</th>
+                <th>Saída</th>
+                <th>Valor (€)</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="historico-tbody">
+              <tr><td colspan="5" class="text-center text-muted">A carregar histórico...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
 </main>
   
   <script>
@@ -201,6 +227,40 @@
       });
 
       fetchTarifas();
+    });
+  </script>
+
+
+  <script>
+    const fetchHistorico = async () => {
+      const tbody = document.getElementById('historico-tbody');
+      if (!tbody) return;
+      try {
+        const res = await fetch('/api/history');
+        if (res.ok) {
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : (data.items || []);
+          if (list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Nenhum registo encontrado.</td></tr>';
+            return;
+          }
+          tbody.innerHTML = list.map(item => `
+            <tr>
+              <td><strong>${item.plate || '-'}</strong></td>
+              <td>${item.entry_time || item.created_at || '-'}</td>
+              <td>${item.exit_time || '-'}</td>
+              <td>${item.amount !== undefined && item.amount !== null ? '€ ' + Number(item.amount).toFixed(2) : '-'}</td>
+              <td><span class="badge bg-${item.status === 'Pago' || item.status === 'Concluído' ? 'success' : 'warning'}">${item.status || 'Ativo'}</span></td>
+            </tr>
+          `).join('');
+        }
+      } catch (e) {
+        console.error('Erro ao carregar histórico:', e);
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchHistorico();
     });
   </script>
 

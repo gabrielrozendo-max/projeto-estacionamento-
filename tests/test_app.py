@@ -458,3 +458,39 @@ def test_dashboard_renders_tarifa_form():
     assert b'id="hora_inicial"' in response.data
     assert b'id="hora_adicional"' in response.data
     assert b'id="tolerancia_minutos"' in response.data
+
+
+def test_get_history_proxied_to_xano():
+    upstream = create_upstream_response(
+        200,
+        [
+            {
+                "plate": "AA-00-AA",
+                "entry_time": "2026-11-01 10:00",
+                "exit_time": "2026-11-01 11:00",
+                "amount": 2.50,
+                "status": "Pago",
+            }
+        ],
+    )
+    with patch("app.requests.request", return_value=upstream) as request_mock:
+        response = create_client().get("/api/history")
+
+    assert response.status_code == 200
+    assert isinstance(response.json, list)
+    assert response.json[0]["plate"] == "AA-00-AA"
+    request_mock.assert_called_once_with(
+        "GET",
+        "https://example.xano.io/api:parking/history",
+        json=None,
+        headers={"Accept": "application/json"},
+        timeout=2,
+        allow_redirects=False,
+    )
+
+
+def test_dashboard_renders_historico_table():
+    response = create_client().get("/")
+    assert response.status_code == 200
+    assert b'id="historico-table"' in response.data
+    assert b'id="historico-tbody"' in response.data

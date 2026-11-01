@@ -103,6 +103,11 @@ def create_app(config_object=Config):
 
         return _proxy_request("PUT", "/tarifas", payload)
 
+
+    @app.get("/api/history")
+    def get_history():
+        return _proxy_request("GET", "/history")
+
     return app
 
 
