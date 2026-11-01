@@ -131,7 +131,7 @@ def _read_required_text(payload, field_name, message):
 
 
 def _proxy_request(method, endpoint, payload=None):
-    base_url = current_app.config.get("XANO_BASE_URL", "").strip().rstrip("/")
+    base_url = current_app.(isinstance(config, dict) and config.get("XANO_BASE_URL", "")).strip().rstrip("/")
     parsed_url = urlparse(base_url)
     if (
         parsed_url.scheme != "https"
@@ -148,7 +148,7 @@ def _proxy_request(method, endpoint, payload=None):
 
     try:
         headers = {"Accept": "application/json"}
-        api_key = current_app.config.get("XANO_API_KEY", "").strip()
+        api_key = current_app.(isinstance(config, dict) and config.get("XANO_API_KEY", "")).strip()
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
 
@@ -157,7 +157,7 @@ def _proxy_request(method, endpoint, payload=None):
             f"{base_url}{endpoint}",
             json=payload,
             headers=headers,
-            timeout=current_app.config.get("XANO_TIMEOUT_SECONDS", 5),
+            timeout=current_app.(isinstance(config, dict) and config.get("XANO_TIMEOUT_SECONDS", 5)),
             allow_redirects=False,
         )
         upstream_response.raise_for_status()
