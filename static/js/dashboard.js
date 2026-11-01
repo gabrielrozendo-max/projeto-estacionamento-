@@ -38,8 +38,17 @@ async function requestJson(url, options = {}) {
     throw new Error('A aplicação devolveu uma resposta inválida.');
   }
 
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw new Error('A aplicação devolveu uma resposta inválida.');
+  }
+
   if (!response.ok || body.error) {
-    throw new Error(body.message || body.error?.message || 'Não foi possível concluir o pedido.');
+    const errorMessage = typeof body.message === 'string'
+      ? body.message
+      : typeof body.error === 'string'
+        ? body.error
+        : body.error?.message;
+    throw new Error(errorMessage || 'Não foi possível concluir o pedido.');
   }
 
   return body;
@@ -75,22 +84,26 @@ async function refreshStatus() {
   try {
     const response = await requestJson('/api/status');
     const status = getData(response);
-    const occupied = Number(status.occupied_spaces ?? status.occupiedSpaces);
-    const capacity = Number(status.max_capacity ?? status.maxCapacity);
-    const available = Number(
-      status.available_spaces
-        ?? status.availableSpaces
-        ?? capacity - occupied,
-    );
+    const occupied = status.occupied_spaces ?? status.occupiedSpaces;
+    const capacity = status.max_capacity ?? status.maxCapacity;
+    const available = status.available_spaces
+      ?? status.availableSpaces
+      ?? (
+        Number.isSafeInteger(capacity) && Number.isSafeInteger(occupied)
+          ? capacity - occupied
+          : NaN
+      );
 
     if (
-      !Number.isFinite(occupied)
-      || !Number.isFinite(capacity)
-      || !Number.isFinite(available)
+      !Number.isSafeInteger(occupied)
+      || !Number.isSafeInteger(capacity)
+      || !Number.isSafeInteger(available)
       || capacity <= 0
       || occupied < 0
       || occupied > capacity
       || available < 0
+      || available > capacity
+      || occupied + available !== capacity
     ) {
       throw new Error('A resposta de lotação do Xano não contém valores válidos.');
     }
@@ -137,6 +150,11 @@ async function refreshStatus() {
     entrySubmit.title = full ? 'O parque está cheio.' : '';
   } catch (error) {
     statusElements.message.textContent = error.message;
+    statusElements.occupied.textContent = '—';
+    statusElements.available.textContent = '—';
+    statusElements.max.textContent = '—';
+    statusElements.progressBar.style.width = '0%';
+    statusElements.progress.setAttribute('aria-valuenow', '0');
     statusElements.indicator.className = 'h-4 w-4 rounded-full bg-slate-400';
     statusElements.label.className = 'font-semibold text-slate-600';
     statusElements.label.textContent = 'Indisponível';
@@ -148,9 +166,13 @@ async function refreshStatus() {
 entryForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   hideFeedback();
+  if (!entryAllowed) {
+    displayFeedback('Atualize a lotação antes de registar uma entrada.', true);
+    return;
+  }
+  const formData = new FormData(entryForm);
   setLoading(entryForm, true);
 
-  const formData = new FormData(entryForm);
   try {
     const response = await requestJson('/api/entries', {
       method: 'POST',
@@ -167,6 +189,7 @@ entryForm.addEventListener('submit', async (event) => {
     await refreshStatus();
   } catch (error) {
     displayFeedback(error.message, true);
+    await refreshStatus();
   } finally {
     setLoading(entryForm, false);
     entrySubmit.disabled = !entryAllowed;
@@ -177,10 +200,10 @@ entryForm.addEventListener('submit', async (event) => {
 exitForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   hideFeedback();
-  setLoading(exitForm, true);
-
   const formData = new FormData(exitForm);
   const plate = formData.get('plate').trim().toUpperCase();
+  setLoading(exitForm, true);
+
   try {
     const response = await requestJson('/api/exits', {
       method: 'POST',
@@ -188,7 +211,7 @@ exitForm.addEventListener('submit', async (event) => {
     });
     const exit = getData(response);
     const totalCents = exit.total_cents ?? exit.totalAmountCents;
-    const formattedTotal = Number.isInteger(totalCents)
+    const formattedTotal = Number.isSafeInteger(totalCents) && totalCents >= 0
       ? new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' })
         .format(totalCents / 100)
       : null;
@@ -215,15 +238,18 @@ exitForm.addEventListener('submit', async (event) => {
 paymentForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   hideFeedback();
+  const recordId = Number(new FormData(paymentForm).get('record_id'));
   setLoading(paymentForm, true);
 
-  const recordId = Number(new FormData(paymentForm).get('record_id'));
   try {
     const response = await requestJson('/api/payments/confirm', {
       method: 'POST',
       body: JSON.stringify({ record_id: recordId }),
     });
     const payment = getData(response);
+    if (payment.status !== 'Concluído') {
+      throw new Error('A resposta não confirma a conclusão do pagamento.');
+    }
     displayFeedback(
       `Pagamento confirmado${payment.plate ? ` para ${payment.plate}` : ''}. O lugar foi libertado.`,
     );

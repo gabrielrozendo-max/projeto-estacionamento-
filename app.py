@@ -124,11 +124,16 @@ def _proxy_request(method, endpoint, payload=None):
         )
 
     try:
+        headers = {"Accept": "application/json"}
+        api_key = current_app.config.get("XANO_API_KEY", "").strip()
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
         upstream_response = requests.request(
             method,
             f"{base_url}{endpoint}",
             json=payload,
-            headers={"Accept": "application/json"},
+            headers=headers,
             timeout=current_app.config.get("XANO_TIMEOUT_SECONDS", 5),
             allow_redirects=False,
         )

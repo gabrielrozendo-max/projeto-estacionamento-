@@ -1,8 +1,10 @@
 import json
+from importlib import reload
 from unittest.mock import patch
 
 import requests
 
+import config
 from app import create_app
 
 
@@ -11,6 +13,7 @@ def create_client(base_url="https://example.xano.io/api:parking"):
         {
             "TESTING": True,
             "XANO_BASE_URL": base_url,
+            "XANO_API_KEY": "",
             "XANO_TIMEOUT_SECONDS": 2,
         }
     )
@@ -61,6 +64,42 @@ def test_status_is_proxied_to_xano():
     )
 
 
+def test_xano_api_key_is_read_from_environment_and_forwarded_as_bearer_token(
+    monkeypatch,
+):
+    monkeypatch.setenv("XANO_BASE_URL", "https://example.xano.io/api:parking")
+    monkeypatch.setenv("XANO_API_KEY", "test-token")
+    config_module = reload(config)
+    app = create_app(
+        {
+            "TESTING": True,
+            "XANO_BASE_URL": config_module.Config.XANO_BASE_URL,
+            "XANO_API_KEY": config_module.Config.XANO_API_KEY,
+            "XANO_TIMEOUT_SECONDS": 2,
+        }
+    )
+    upstream = create_upstream_response(200, {"max_capacity": 10})
+
+    with patch("app.requests.request", return_value=upstream) as request_mock:
+        response = app.test_client().get("/api/status")
+
+    assert response.status_code == 200
+    assert request_mock.call_args.kwargs["headers"] == {
+        "Accept": "application/json",
+        "Authorization": "Bearer test-token",
+    }
+
+
+def test_xano_url_has_no_hardcoded_default(monkeypatch):
+    monkeypatch.delenv("XANO_BASE_URL", raising=False)
+    monkeypatch.delenv("XANO_API_KEY", raising=False)
+    with patch("dotenv.load_dotenv"):
+        config_module = reload(config)
+
+    assert config_module.Config.XANO_BASE_URL == ""
+    assert config_module.Config.XANO_API_KEY == ""
+
+
 def test_entry_validates_and_forwards_snake_case_payload():
     upstream = create_upstream_response(201, {"data": {"id": 7}})
 
@@ -78,15 +117,62 @@ def test_entry_validates_and_forwards_snake_case_payload():
     }
 
 
+def test_exit_preserves_fee_response_and_occupied_spaces():
+    exit_body = {
+        "data": {
+            "id": 7,
+            "plate": "AA-00-AA",
+            "status": "Aguardando Pagamento",
+            "total_cents": 200,
+        },
+        "occupancy": {"occupied_spaces": 12},
+    }
+    upstream = create_upstream_response(200, exit_body)
+
+    with patch("app.requests.request", return_value=upstream) as request_mock:
+        response = create_client().post(
+            "/api/exits",
+            json={"plate": " aa-00-aa "},
+        )
+
+    assert response.status_code == 200
+    assert response.json == exit_body
+    request_mock.assert_called_once_with(
+        "POST",
+        "https://example.xano.io/api:parking/exits",
+        json={"plate": "AA-00-AA"},
+        headers={"Accept": "application/json"},
+        timeout=2,
+        allow_redirects=False,
+    )
+
+
 def test_exit_and_payment_are_proxied_using_contract_payloads():
     client = create_client()
     exit_response = create_upstream_response(
         200,
-        {"data": {"record_id": 7, "total_cents": 200}},
+        {
+            "data": {
+                "record_id": 7,
+                "status": "Aguardando Pagamento",
+                "total_cents": 200,
+            },
+            "occupancy": {"occupied_spaces": 12},
+        },
     )
     payment_response = create_upstream_response(
         200,
-        {"data": {"record_id": 7, "status": "Concluído"}},
+        {
+            "data": {
+                "record_id": 7,
+                "status": "Concluído",
+                "total_cents": 200,
+            },
+            "occupancy": {
+                "occupied_spaces": 11,
+                "max_capacity": 50,
+            },
+        },
     )
 
     with patch(
@@ -101,13 +187,53 @@ def test_exit_and_payment_are_proxied_using_contract_payloads():
 
     assert exit_result.status_code == 200
     assert exit_result.json["data"]["total_cents"] == 200
+    assert exit_result.json["occupancy"]["occupied_spaces"] == 12
     assert payment_result.status_code == 200
+    assert payment_result.json["data"]["status"] == "Concluído"
+    assert payment_result.json["occupancy"]["occupied_spaces"] == 11
+    assert payment_result.json["data"]["total_cents"] == 200
     assert request_mock.call_args_list[0].args[:2] == (
         "POST",
         "https://example.xano.io/api:parking/exits",
     )
     assert request_mock.call_args_list[0].kwargs["json"] == {"plate": "AA-00-AA"}
     assert request_mock.call_args_list[1].kwargs["json"] == {"record_id": 7}
+    assert request_mock.call_args_list[1].kwargs["headers"] == {
+        "Accept": "application/json",
+    }
+    assert request_mock.call_count == 2
+
+
+def test_payment_confirmation_preserves_xano_response_and_forwards_record_id():
+    payment_body = {
+        "data": {
+            "record_id": 42,
+            "status": "Concluído",
+            "total_cents": 375,
+        },
+        "occupancy": {
+            "occupied_spaces": 11,
+            "max_capacity": 50,
+        },
+    }
+    upstream = create_upstream_response(200, payment_body)
+
+    with patch("app.requests.request", return_value=upstream) as request_mock:
+        response = create_client().post(
+            "/api/payments/confirm",
+            json={"record_id": 42},
+        )
+
+    assert response.status_code == 200
+    assert response.json == payment_body
+    request_mock.assert_called_once_with(
+        "POST",
+        "https://example.xano.io/api:parking/payments/confirm",
+        json={"record_id": 42},
+        headers={"Accept": "application/json"},
+        timeout=2,
+        allow_redirects=False,
+    )
 
 
 def test_invalid_payloads_return_structured_json_without_calling_xano():
@@ -117,16 +243,105 @@ def test_invalid_payloads_return_structured_json_without_calling_xano():
             "/api/entries",
             json={"plate": "AA-00-AA"},
         )
-        invalid_payment_id = client.post(
-            "/api/payments/confirm",
-            json={"record_id": True},
-        )
+        missing_exit_plate = client.post("/api/exits", json={"plate": "  "})
+        invalid_payment_results = [
+            client.post("/api/payments/confirm", json={"record_id": True}),
+            client.post("/api/payments/confirm", json={"record_id": 0}),
+            client.post("/api/payments/confirm", json={"record_id": -1}),
+            client.post("/api/payments/confirm", json={"record_id": "7"}),
+            client.post("/api/payments/confirm", json={}),
+            client.post(
+                "/api/payments/confirm",
+                data="not-json",
+                content_type="application/json",
+            ),
+        ]
 
     assert missing_vehicle_type.status_code == 400
     assert missing_vehicle_type.json["error"] is True
-    assert invalid_payment_id.status_code == 400
-    assert invalid_payment_id.json["error"] is True
+    assert missing_exit_plate.status_code == 400
+    assert missing_exit_plate.json["error"] is True
+    assert all(result.status_code == 400 for result in invalid_payment_results)
+    assert all(result.json["error"] is True for result in invalid_payment_results)
     request_mock.assert_not_called()
+
+
+def test_exit_xano_http_error_remains_a_structured_error():
+    upstream = create_upstream_response(
+        404,
+        {"error": {"message": "Não existe registo ativo para esta matrícula."}},
+    )
+
+    with patch("app.requests.request", return_value=upstream) as request_mock:
+        response = create_client().post(
+            "/api/exits",
+            json={"plate": "AA-00-AA"},
+        )
+
+    assert response.status_code == 404
+    assert response.json == {
+        "error": True,
+        "message": "Não existe registo ativo para esta matrícula.",
+    }
+    request_mock.assert_called_once()
+
+
+def test_exit_network_error_returns_gateway_error():
+    with patch(
+        "app.requests.request",
+        side_effect=requests.exceptions.ConnectionError,
+    ) as request_mock:
+        response = create_client().post(
+            "/api/exits",
+            json={"plate": "AA-00-AA"},
+        )
+
+    assert response.status_code == 502
+    assert response.json["error"] is True
+    request_mock.assert_called_once()
+
+
+def test_payment_confirmation_xano_conflict_is_returned_as_structured_error():
+    upstream = create_upstream_response(
+        409,
+        {
+            "error": {
+                "code": "PAYMENT_NOT_PENDING",
+                "message": "O registo não aguarda pagamento.",
+            },
+        },
+    )
+
+    with patch("app.requests.request", return_value=upstream) as request_mock:
+        response = create_client().post(
+            "/api/payments/confirm",
+            json={"record_id": 42},
+        )
+
+    assert response.status_code == 409
+    assert response.json == {
+        "error": True,
+        "message": "O registo não aguarda pagamento.",
+    }
+    request_mock.assert_called_once()
+
+
+def test_payment_confirmation_network_error_returns_gateway_error():
+    with patch(
+        "app.requests.request",
+        side_effect=requests.exceptions.ConnectionError,
+    ) as request_mock:
+        response = create_client().post(
+            "/api/payments/confirm",
+            json={"record_id": 42},
+        )
+
+    assert response.status_code == 502
+    assert response.json == {
+        "error": True,
+        "message": "Não foi possível estabelecer ligação ao Xano.",
+    }
+    request_mock.assert_called_once()
 
 
 def test_xano_http_errors_keep_status_and_use_standard_json():
