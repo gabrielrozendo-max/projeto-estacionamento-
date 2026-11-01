@@ -11,7 +11,7 @@ Atuarás rigorosamente como **Arquiteto de Software Sénior e Desenvolvedor Full
 ## 2. Stack Tecnológico & Arquitetura de Camadas
 
 ### A. Backend, Persistência e Regras de Negócio (Plataforma Xano)
-* **Base de Dados Centralizada:** Estruturada nas 4 tabelas obrigatórias no Xano (`tariffs`, `vehicles`, `parking_records`, `parking_capacity`).
+* **Base de Dados Centralizada (nomes reais no Xano):** `tarifa`, `veiculo`, `vaga`, `movimentacao`, `mensalista`, `usuario` e `parking_capacity` (usada pelo endpoint `status`). Nunca usar os nomes `tariffs`, `vehicles` ou `parking_records`.
 * **Lógica Financeira e Regras de Negócio:** Centralizadas no Xano (Function Stacks). O cálculo de tempo, o **arredondamento de frações de hora para cima** e a validação de capacidade máxima ocorrem exclusivamente no backend no-code.
 * **Protocolo de Comunicação:** Endpoints RESTful HTTPS padronizados, operando estritamente com payloads no formato JSON (`application/json`).
 
@@ -68,4 +68,4 @@ O Agente de IA deve garantir que a aplicação Python e o frontend respeitem int
 
 * **Desenvolvimento Modular:** Fazer a transição por etapas documentadas na pasta `docs/specs/` (ex: `xano-backend.md`, `python-app.md`, `dashboard-ui.md`).
 * **Ciclo Mapear -> Planear -> Executar:** Propor a estrutura de ficheiros e especificações detalhadas antes de escrever a implementação física dos scripts Python e templates HTML.
-* **Validação Contínua:** Garantir a validação dos requisitos e a inexistência de vulnerabilidades ou erros de sintaxe a cada módulo concluído.S
+* **Validação Contínua:** Garantir a validação dos requisitos e a inexistência de vulnerabilidades ou erros de sintaxe a cada módulo concluído.
