@@ -387,3 +387,65 @@ def test_unexpected_errors_are_returned_as_structured_json():
         "error": True,
         "message": "Ocorreu um erro interno na aplicação.",
     }
+
+
+def test_get_tarifas_proxied_to_xano():
+    upstream = create_upstream_response(
+        200,
+        {
+            "hora_inicial": 10.0,
+            "hora_adicional": 5.0,
+            "tolerancia_minutos": 15,
+        },
+    )
+
+    with patch("app.requests.request", return_value=upstream) as request_mock:
+        response = create_client().get("/api/tarifas")
+
+    assert response.status_code == 200
+    assert response.json["hora_inicial"] == 10.0
+    assert response.json["tolerancia_minutos"] == 15
+    request_mock.assert_called_once_with(
+        "GET",
+        "https://example.xano.io/api:parking/tarifas",
+        json=None,
+        headers={"Accept": "application/json"},
+        timeout=2,
+        allow_redirects=False,
+    )
+
+
+def test_update_tarifas_validates_and_proxies_to_xano():
+    payload = {
+        "hora_inicial": 12.0,
+        "hora_adicional": 6.0,
+        "tolerancia_minutos": 20,
+    }
+    upstream = create_upstream_response(200, {"success": True, "data": payload})
+
+    with patch("app.requests.request", return_value=upstream) as request_mock:
+        response = create_client().put("/api/tarifas", json=payload)
+
+    assert response.status_code == 200
+    assert response.json["success"] is True
+    request_mock.assert_called_once_with(
+        "PUT",
+        "https://example.xano.io/api:parking/tarifas",
+        json=payload,
+        headers={"Accept": "application/json"},
+        timeout=2,
+        allow_redirects=False,
+    )
+
+
+def test_update_tarifas_invalid_payload_returns_400():
+    client = create_client()
+    with patch("app.requests.request") as request_mock:
+        invalid_res_1 = client.put("/api/tarifas", json={"hora_inicial": -5})
+        invalid_res_2 = client.put("/api/tarifas", json={"tolerancia_minutos": "quinze"})
+        invalid_res_3 = client.put("/api/tarifas", json={"hora_adicional": True})
+
+    assert invalid_res_1.status_code == 400
+    assert invalid_res_2.status_code == 400
+    assert invalid_res_3.status_code == 400
+    request_mock.assert_not_called()

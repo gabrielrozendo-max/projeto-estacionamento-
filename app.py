@@ -85,6 +85,24 @@ def create_app(config_object=Config):
             {"record_id": record_id},
         )
 
+
+    @app.get("/api/tarifas")
+    def get_tarifas():
+        return _proxy_request("GET", "/tarifas")
+
+    @app.put("/api/tarifas")
+    def update_tarifas():
+        payload = _read_json_object()
+        if isinstance(payload, tuple):
+            return payload
+
+        for field in ["hora_inicial", "hora_adicional", "tolerancia_minutos"]:
+            val = payload.get(field)
+            if val is not None and (isinstance(val, bool) or not isinstance(val, (int, float)) or val < 0):
+                return _json_error(400, f"O valor de '{field}' é inválido.")
+
+        return _proxy_request("PUT", "/tarifas", payload)
+
     return app
 
 
