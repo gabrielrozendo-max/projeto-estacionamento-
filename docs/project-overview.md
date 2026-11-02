@@ -12,3 +12,26 @@ Desenvolver uma aplicação web para gerir o fluxo de veículos num parque de es
 * **Registo de Entrada e Saída:** Captura de matrículas e cálculo automático do valor a pagar com base no tempo de permanência.
 * **Gestão de Ocupação:** Visualização em tempo real dos lugares disponíveis e ocupados.
 * **Histórico e Relatórios:** Registo em base de dados de todas as transações para consulta administrativa.
+
+
+## Arquitetura Tecnológica
+
+### Frontend
+- Tecnologia: Streamlit.
+- Linguagem: Python.
+- O Streamlit será utilizado exclusivamente para implementar as interfaces do sistema.
+
+### Backend
+- Tecnologia: Xano.
+- Responsável pelas APIs, regras de negócio, validações e persistência dos dados.
+
+### Desenvolvimento
+- Editor: Visual Studio Code.
+- Controle de versão: Git e GitHub.
+- Documentação e especificações: OpenSpec.
+- Agente de IA: Gemini CLI.
+
+### Restrições Arquiteturais
+O frontend deve ser desenvolvido exclusivamente com Streamlit.
+Não introduzir Flask, React, Vue, Angular, Next.js ou outra tecnologia de frontend sem uma alteração arquitetural explicitamente aprovada.
+A migração deverá preservar as funcionalidades existentes do sistema de estacionamento.

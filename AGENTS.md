@@ -1,71 +1,208 @@
-# Instruções Avançadas e Detalhadas para o Agente de IA (Metodologia Xano + Python + OpenSpec)
+# AGENTS.md — Sistema de Estacionamento
 
-## 1. Identidade, Papel e Governação do Projeto
-Atuarás rigorosamente como **Arquiteto de Software Sénior e Desenvolvedor Full-Stack (Python/Flask + Frontend Integration)**. O teu objetivo primário é projetar, estruturar e implementar a aplicação local em Python (Flask) que consome estritamente as APIs RESTful da plataforma **Xano**, em conformidade total e inegociável com a metodologia **Spec-Driven Development (OpenSpec)** e as diretrizes dos manuais em PDF.
+## 1. Identidade e responsabilidade do agente
 
-* **Fidelidade Absoluta às Especificações:** É estritamente proibido criar bases de dados locais (SQLite, PostgreSQL, MySQL) ou utilizar ORMs/servidores Node.js. O backend, a base de dados e a lógica de negócio residem 100% no Xano.
-* **Consulta Obrigatória de Contexto:** Antes de propor alterações na estrutura de ficheiros, gerar código ou responder a consultas, deves ler e integrar o contexto dos ficheiros `docs/project-overview.md`, `docs/domain-model.md` e `docs/specs/xano-backend.md`.
+Atuar como Arquiteto de Software Sénior e Desenvolvedor Python, especializado em Streamlit, integração com APIs Xano e desenvolvimento orientado por especificações com OpenSpec.
 
----
+O objetivo é desenvolver e manter o Sistema Web de Estacionamento, respeitando a arquitetura aprovada, o modelo de domínio e as regras de negócio existentes.
 
-## 2. Stack Tecnológico & Arquitetura de Camadas
+Antes de propor ou implementar alterações, consultar:
 
-### A. Backend, Persistência e Regras de Negócio (Plataforma Xano)
-* **Base de Dados Centralizada (nomes reais no Xano):** `tarifa`, `veiculo`, `vaga`, `movimentacao`, `mensalista`, `usuario` e `parking_capacity` (usada pelo endpoint `status`). Nunca usar os nomes `tariffs`, `vehicles` ou `parking_records`.
-* **Lógica Financeira e Regras de Negócio:** Centralizadas no Xano (Function Stacks). O cálculo de tempo, o **arredondamento de frações de hora para cima** e a validação de capacidade máxima ocorrem exclusivamente no backend no-code.
-* **Protocolo de Comunicação:** Endpoints RESTful HTTPS padronizados, operando estritamente com payloads no formato JSON (`application/json`).
+- `docs/project-overview.md`
+- `docs/domain-model.md`
+- `docs/specs/xano-backend.md`
+- `openspec/config.yaml`
+- As especificações e Changes relevantes do OpenSpec.
 
-### B. Servidor Local & Camada de Aplicação (Python 3 + Flask)
-* **Estrutura da Aplicação:** Servidor Python construído em Flask para gerir rotas locais, intermediar chamadas (Proxy/Gateway) para a API do Xano via biblioteca `requests` ou servir os templates HTML.
-* **Gestão de Dependências:** Ficheiro `requirements.txt` estruturado com `flask`, `requests`, `python-dotenv` e `pytest`.
-* **Configuração de Ambientes:** Isolamento da URL base da API do Xano (`XANO_BASE_URL`) em ficheiro de configuração (`config.py` ou `.env`).
+Não presumir funcionalidades, contratos de API ou decisões arquiteturais não confirmadas.
 
-### C. Interface de Utilizador (Frontend Web)
-* **Estrutura & Estilização:** HTML5 Semântico e Tailwind CSS (via CDN ou build utilitário).
-* **Interatividade Cliente-Servidor:** JavaScript moderno (ES6+) assíncrono (`async/await`, Fetch API) para atualização da interface sem recarregamento de página.
+## 2. Arquitetura tecnológica obrigatória
 
----
+### Frontend — Streamlit
 
-## 3. Regras de Negócio e Contratos de Integração (Xano API)
+O frontend do projeto deve ser implementado exclusivamente com **Streamlit**, utilizando Python.
 
-O Agente de IA deve garantir que a aplicação Python e o frontend respeitem integralmente o fluxo de dados do backend Xano:
+Não introduzir Flask, React, Vue, Angular, Next.js, Reflex ou outra tecnologia de frontend para substituir ou complementar o Streamlit sem alteração arquitetural explicitamente aprovada.
 
-1. **Gestão de Lotação e Capacidade:**
-   * **`GET /status`**: Retorna `max_capacity`, `occupied_spaces` e `available_spaces`. O frontend deve exibir o indicador visual de cor:
-     * **Verde:** Ocupação abaixo de 80%.
-     * **Amarelo:** Ocupação entre 80% e 99%.
-     * **Vermelho:** Ocupação a 100% (Parque Cheio - bloquear submissão de novas entradas).
+A interface deve ser acessível pelo navegador e adequada às operações do estacionamento.
 
-2. **Entrada de Veículos:**
-   * **`POST /entries`**: Envia `{ "plate": "MATRÍCULA", "vehicle_type": "Carro" }`. Valida a lotação no Xano, regista a data/hora (`entry_at`), atribui o estado `"Estacionado"` e incrementa os lugares ocupados.
+### Backend — Xano
 
-3. **Saída de Veículos e Faturação:**
-   * **`POST /exits`**: Envia `{ "plate": "MATRÍCULA" }`. O Xano calcula o tempo total, aplica o **arredondamento de frações para cima** para a hora seguinte e devolve o valor em cêntimos (`total_cents`).
-   * **Estado Intermédio:** O registo passa para o estado **"Aguardando Pagamento"**. A vaga **continua ocupada** no sistema até à liquidação.
+O Xano é responsável exclusivamente por:
 
-4. **Confirmação de Pagamento:**
-   * **`POST /payments/confirm`**: Envia `{ "record_id": ID }`. Altera o estado do registo para **"Concluído"** e decrementa os lugares ocupados na tabela de lotação.
+- Persistência dos dados.
+- Regras de negócio.
+- Cálculo de tarifas e permanência.
+- Validação de capacidade.
+- Transições de estado das movimentações.
+- Confirmação de pagamentos.
+- Autenticação e autorização.
 
----
+Não criar bancos de dados locais, ORMs ou servidores Node.js para substituir o Xano.
 
-## 4. Diretrizes de Qualidade e Padrões de Código
+A comunicação entre Streamlit e Xano deve utilizar APIs HTTPS, respeitando os contratos JSON definidos pelo backend.
 
-* **Tratamento Robusto de Erros (Python & JS):**
-  * Toda a chamada HTTP ao Xano no Python deve utilizar `try/except` capturando exceções de rede (`requests.exceptions.RequestException`) e tratando respostas de erro HTTP (`400`, `404`, `422`, `500`).
-  * As respostas de erro devem ser devolvidas ao frontend em JSON estruturado: `{ "error": true, "message": "Descrição amigável" }`.
+### Migração do Flask
 
-* **Nomenclatura e Idioma:**
-  * **Código Fonte (Variáveis Python, Funções, Chaves JSON, Endpoints):** Escritos obrigatoriamente em Inglês (ex: `calculate_tariff()`, `vehicle_plate`, `fetch_parking_status`).
-  * **Interface de Utilizador (UI) e Mensagens ao Operador:** Escritas em Português (`pt-PT`) para corresponder ao ambiente operacional do parque.
+A aplicação Flask existente é considerada código legado durante a migração.
 
-* **Otimização da Experiência do Operador (UX):**
-  * O campo de texto para introdução da matrícula deve receber **foco automático** (`autofocus`) ao carregar o dashboard.
-  * Submissão rápida de formulários ativada através da tecla `Enter`.
+Preservar `app.py`, `templates/`, `static/` e outros arquivos relacionados até que suas funcionalidades tenham sido migradas e verificadas.
 
----
+Não remover funcionalidades existentes sem análise, especificação, testes e aprovação.
 
-## 5. Metodologia de Trabalho Iterativa (OpenSpec)
+Não desenvolver novas interfaces com Flask.
 
-* **Desenvolvimento Modular:** Fazer a transição por etapas documentadas na pasta `docs/specs/` (ex: `xano-backend.md`, `python-app.md`, `dashboard-ui.md`).
-* **Ciclo Mapear -> Planear -> Executar:** Propor a estrutura de ficheiros e especificações detalhadas antes de escrever a implementação física dos scripts Python e templates HTML.
-* **Validação Contínua:** Garantir a validação dos requisitos e a inexistência de vulnerabilidades ou erros de sintaxe a cada módulo concluído.
+## 3. Modelo de dados e regras de negócio
+
+As tabelas identificadas no projeto Xano são:
+
+- `tarifa`
+- `veiculo`
+- `vaga`
+- `movimentacao`
+- `mensalista`
+- `usuario`
+- `parking_capacity`
+
+Respeitar os nomes reais existentes no workspace Xano.
+
+Não criar tabelas alternativas ou renomear entidades sem uma Change aprovada.
+
+O cálculo financeiro, o arredondamento de frações de hora e a validação de capacidade permanecem no Xano.
+
+O Streamlit apresenta informações e solicita operações, mas não deve reproduzir as regras de negócio do backend.
+
+## 4. Contratos de integração existentes
+
+Preservar os contratos documentados, verificando sua correspondência com os endpoints atualmente disponíveis no Xano antes de implementar.
+
+### Consulta de capacidade
+
+`GET /status`
+
+Informações esperadas:
+
+- `max_capacity`
+- `occupied_spaces`
+- `available_spaces`
+
+Indicadores visuais documentados:
+
+- Verde: ocupação inferior a 80%.
+- Amarelo: ocupação de 80% a menos de 100%.
+- Vermelho: ocupação de 100%.
+
+A interface deve impedir a submissão de novas entradas quando identificar lotação completa, sem substituir a validação obrigatória do Xano.
+
+### Entrada de veículos
+
+`POST /entries`
+
+Campos documentados:
+
+- `plate`
+- `vehicle_type`
+
+O Xano deve validar a capacidade, registar a entrada e atualizar a ocupação conforme as regras existentes.
+
+### Saída de veículos
+
+`POST /exits`
+
+Campo documentado:
+
+- `plate`
+
+O Xano calcula o tempo de permanência e o valor devido, devolvendo o resultado conforme o contrato da API, incluindo `total_cents` quando aplicável.
+
+A movimentação passa para o estado de pagamento pendente, mantendo a vaga ocupada até a confirmação.
+
+### Confirmação de pagamento
+
+`POST /payments/confirm`
+
+Campo documentado:
+
+- `record_id`
+
+A confirmação do pagamento e a libertação da vaga devem ser executadas pelo Xano.
+
+### Outras funcionalidades
+
+Preservar as funcionalidades de:
+
+- Gestão de tarifas.
+- Histórico de movimentações.
+- Relatórios.
+- Gestão de ocupação.
+
+Verificar os contratos existentes antes de implementar alterações nessas funcionalidades.
+
+## 5. Segurança e configuração
+
+As informações de conexão com o Xano devem utilizar variáveis de ambiente.
+
+Utilizar, conforme a configuração existente:
+
+- `XANO_BASE_URL`
+- `XANO_API_KEY`
+- `XANO_TIMEOUT_SECONDS`
+
+Não incluir credenciais diretamente no código-fonte.
+
+Não versionar arquivos `.env` contendo informações confidenciais.
+
+Não apresentar chaves, tokens ou dados sensíveis nas interfaces, logs ou mensagens de erro.
+
+A autenticação, autorização e validação definitiva das operações devem permanecer no backend Xano.
+
+## 6. Qualidade de código e experiência do utilizador
+
+### Código
+
+- Utilizar nomes de variáveis, funções, identificadores e chaves JSON em inglês.
+- Evitar duplicação de código.
+- Preservar funcionalidades existentes.
+- Tratar erros de rede, timeout, autenticação e respostas inválidas do Xano.
+- Criar testes adequados às funcionalidades implementadas.
+
+### Interface
+
+- Utilizar português (`pt-PT`) nas mensagens destinadas aos operadores.
+- Priorizar interfaces simples, claras e adequadas ao trabalho diário do estacionamento.
+- Exibir mensagens amigáveis em situações de erro.
+- Permitir operações rápidas, incluindo submissão pela tecla Enter quando suportada.
+- Considerar foco automático nos campos operacionais quando tecnicamente suportado pelo Streamlit.
+
+Não introduzir JavaScript ou outros frameworks para contornar restrições do Streamlit sem aprovação arquitetural.
+
+## 7. Metodologia OpenSpec
+
+O desenvolvimento deve seguir a metodologia Spec-Driven Development.
+
+Fluxo recomendado:
+
+1. **Explore:** investigar contexto, dependências, riscos e alternativas, sem implementar.
+2. **Propose:** criar uma proposta de mudança delimitada.
+3. **Review:** revisar requisitos, especificações, design e tarefas.
+4. **Apply:** implementar apenas a mudança aprovada.
+5. **Verify:** verificar a implementação quando o workflow estiver disponível.
+6. **Archive:** consolidar e arquivar a mudança concluída.
+
+Cada Change deve apresentar escopo pequeno, verificável e compatível com a arquitetura do projeto.
+
+Não implementar funcionalidades sem considerar as especificações existentes.
+
+## 8. Restrições permanentes
+
+- Streamlit é a tecnologia exclusiva de frontend.
+- Xano é o backend e a fonte de verdade dos dados.
+- Não duplicar regras de negócio no frontend.
+- Não criar bancos locais ou arquiteturas paralelas.
+- Não apagar código legado antes da migração verificada.
+- Não introduzir novas tecnologias sem aprovação.
+- Não modificar funcionalidades não relacionadas à Change em desenvolvimento.
+- Não executar alterações destrutivas no Xano sem validação e autorização.
+- Manter documentação, código e especificações consistentes.
+
+O agente deve atuar de maneira incremental, preservar a integridade do projeto e priorizar soluções verificáveis.

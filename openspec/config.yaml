@@ -1,29 +1,64 @@
+
 schema: spec-driven
+
 context: |
-  Project: parking management web application for operators and administrators.
-  Active architecture: Python 3 with Flask as the local web application and
-  gateway; Xano is the sole backend, database, and business-rules platform.
-  The browser UI uses semantic HTML, Tailwind CSS, and JavaScript with async
-  fetch requests to Flask routes, which proxy JSON requests to Xano over HTTPS.
-  Do not add a local database, ORM, Node.js server, or duplicate business rules.
-  Source identifiers, JSON keys, and API routes use English; operator UI and
-  messages use Portuguese (pt-PT).
-  XANO_BASE_URL and any Xano API key are supplied only through environment
-  variables loaded from .env; never commit credentials or embed defaults.
-  Core Xano resources are tariffs, vehicles, parking_records, and
-  parking_capacity. Xano owns capacity validation, pricing, state transitions,
-  and payment confirmation.
+  Project: Parking management web application for operators
+  and administrators.
+
+  Frontend: Streamlit is the mandatory and exclusive frontend
+  technology for the project, implemented with Python.
+
+  Backend: Xano is the sole backend, database, and
+  business-rules platform.
+
+  Architecture: Streamlit communicates with Xano APIs
+  over HTTPS. Business logic, persistence, pricing,
+  capacity validation, and payment confirmation remain
+  the responsibility of Xano.
+
+  Migration: The existing Flask application is legacy code.
+  Preserve its functionality during migration to Streamlit.
+  Do not remove Flask files until their replacement has
+  been implemented and verified.
+
+  Restrictions: Do not introduce React, Vue, Angular,
+  Next.js, Flask, or other frontend frameworks for new
+  interface development without explicit architectural approval.
+
+  Do not add a local database, ORM, Node.js server,
+  or duplicate business rules.
+
+  Source identifiers, JSON keys, and API routes use English.
+  Operator interfaces and messages use Portuguese (pt-PT).
+
+  Security: XANO_BASE_URL and Xano API keys must be supplied
+  through environment variables. Never commit credentials
+  or expose API keys in the frontend.
+
+  Core Xano resources are tariffs, vehicles,
+  parking_records, and parking_capacity.
+
+  Development: Implement changes incrementally
+  using OpenSpec.
+
 rules:
   proposal:
     - Keep each change small, incremental, and verifiable.
     - State scope, affected surfaces, dependencies, and acceptance criteria.
     - Do not assume unresolved domain or integration decisions.
+
   specs:
     - Keep requirements aligned with docs/domain-model.md and docs/specs/xano-backend.md.
     - Specify observable behavior and JSON contracts; keep business rules in Xano.
+
   design:
-    - Preserve Flask as the only active application runtime and Xano as the only persistence layer.
-    - Prefer vertical delivery across API proxy, UI, and verification.
+    - Use Streamlit as the exclusive target frontend technology.
+    - Preserve existing Flask functionality until migration is verified.
+    - Keep Xano as the sole backend and persistence layer.
+    - Do not duplicate Xano business rules in Streamlit.
+    - Prefer incremental implementation and verification.
+
   tasks:
     - Break implementation into independently verifiable tasks.
     - Include focused tests and relevant documentation updates.
+    - Verify migrated functionality before removing legacy code.
